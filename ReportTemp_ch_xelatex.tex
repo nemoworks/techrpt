@@ -1,4 +1,4 @@
-\documentclass[a4paper]{article}
+\documentclass[12pt,a4paper]{article}
 
 \input{style/ch_xelatex.tex}
 \input{style/scala.tex}
@@ -7,8 +7,8 @@
 \geometry{left=3.17cm,right=3.17cm,top=2.54cm,bottom=2.54cm}
 % 常规页眉页脚
 \newpagestyle{main}{            
-    \sethead{左页眉}{中页眉}{右页眉}     %设置页眉
-    \setfoot{左页脚}{\thepage}{右页脚}      %设置页脚，可以在页脚添加 \thepage  显示页数
+    \sethead{}{}{}     %设置页眉
+    \setfoot{}{\thepage}{}      %设置页脚，可以在页脚添加 \thepage  显示页数
     \headrule                                      % 添加页眉的下划线
     \footrule                                       %添加页脚的下划线
 }
@@ -30,7 +30,7 @@
 %-----------------------------------------BEGIN DOC----------------------------------------
 
 \begin{document}
-\renewcommand{\contentsname}{目录}
+\renewcommand{\contentsname}{\ \ \ 目录\ \ \ }
 \renewcommand{\appendixname}{附录}
 \renewcommand{\appendixpagename}{附录}
 \renewcommand{\refname}{参考文献} 
@@ -205,6 +205,32 @@ Reconcile首先根据request中包裹的资源名称和命名空间找到Resourc
 \subsection{消息驱动的人机物资源协作模型}
 \subsubsection{资源状态的同步}
 \subsubsection{资源代理服务（TC）}
+\paragraph{资源代理描述}
+资源代理在我们的平台中是以微服务的形式描述现实世界中资源的一些基本信息和它具有的能力，资源代理主要分为两类:智能设备和人。资源代理的基本信息除了包括id,品牌和它的一些基本属性之外，还包括它的时空属性信息；资源代理的能力实际上表示为\textbf{Restful API}定义的功能接口。目前我们采用传统的\textbf{MVC}架构，在\textbf{Spring Boot}框架上构建我们的资源代理。
+\paragraph{资源代理实现}
+具体实现方面，资源代理在我们的平台上是一个一个的\textbf{Spring Boot}微服务，资源代理的实现需要探针的配合，下面分别描述智能设备和人的资源代理的实现方式。
+\begin{itemize}
+ \item{\textbf{智能设备}}\\
+ 智能设备的资源代理相对固定，因为智能设备的功能是相对固定的，所以当资源代理部署完成之后，不需要对它的属性和功能接口进行大的修改。以空气净化器为例来介绍资源代理的实现。首先我们需要将空气净化器连接到\textbf{Home Assistant}这样的智能设备管理平台上，这样开发人员就可以从\textbf{Home Assistant}上获得空气净化器的属性信息和操控接口，相应地，在空气净化器的资源代理中，一方面，开发人员对空气净化器进行建模，将空气净化器的属性信息和时空属性加入元模型，并提供相应的修改查询接口给\textbf{探针}调用，另一方面开发人员需要封装\textbf{Home Assistant}提供的操纵接口，生成对应的\textbf{Restful API}，使得用户可以通过\textbf{Restful API}，借助\textbf{Home Assistant}来远程操控空气净化器。
+ \begin{lstlisting}
+    %   @PostMapping("/turnon")
+        @Accessible("true")
+        public String turnOnAirPurifier(){
+           RestTemplate restTemplate = new RestTemplate();
+           String url = "http://192.168.31.143:8123/api/services/fan/turn_on";
+           HttpHeaders headers = new HttpHeaders();
+           headers.add("Authorization","xxxxx");
+           headers.setContentType(MediaType.APPLICATION_JSON);
+           JSONObject jsonObject = new JSONObject();
+           jsonObject.put("entity_id","fan.xiaomi_miio_device");
+           HttpEntity<String> request = new HttpEntity<>(jsonObject.toString(),headers);
+           return restTemplate.postForObject(url,request,String.class);
+       }
+    \end{lstlisting}
+    \item{\textbf{人}}\\
+    人的资源代理和智能设备的资源代理在实现方面有一些区别，人的资源代理描述了在某个具体场景下该人所具有的能力，所以随着人的活动，他的资源代理会不断更新。举例来说，当人进入一个只有空气净化器的房间时，现实世界中的人就增加了一个使用空气净化器的能力，在这个场景下，人的资源代理就会增加操控空气净化器的接口。当这个人从房间离开，进入一个有咖啡机的房间，那么现实世界中的人会失去使用空气净化器的能力，增加使用咖啡机的能力，相应地，人的资源代理也会相应更新，删除操控空气净化器的接口，增加操控咖啡机的接口。
+\end{itemize}
+
 \subsubsection{消息队列（TC）}
 
 \subsection{面向人机物融合的资源服务治理框架}
