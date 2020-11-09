@@ -81,7 +81,6 @@
 
 %----------------------------------SYSTEM DESIGN------------------------------------------
 
-\newpage
 % -----------------------------------BLOCKS DESIGN----------------------------------------
 
 %add more subsections for other block in you CPU design.
@@ -163,11 +162,38 @@
 	\end{figure}
 
 	\item [2.] 新版本上线
-
+	当我们需要对auth-service进行更新时，首先需要将新版本的服务进行上线部署。与此同时，相关的路由规则和版本信息修改为：
+	\begin{figure}[htbp]
+	\centering
+	\begin{minipage}[t]{0.48\textwidth}
+	\centering
+	\centerline{\includegraphics[width=6cm]{vs_all_v1.png}}
+	\caption{v1路由规则}
+	\label{fig:vs_all_v1}
+	\end{minipage}
+	\begin{minipage}[t]{0.48\textwidth}
+	\centering
+	\centerline{\includegraphics[width=6cm]{dr_v1.png}}
+	\caption{v1版本规则}
+	\label{fig:dr_v1}
+	\end{minipage}
+	\end{figure}
 	\item [3.] 配置更新
 	\item [4.] 旧版本撤销请求
 	\item [5.] 
 \end{enumerate}
+
+\section{动态更新系统实现}\label{}
+
+\subsection{基本设计概念和结构}
+
+\subsection{代码管理器}
+\subsubsection{模块描述}
+\subsubsection{功能}
+
+\subsection{构建管理器}
+
+\subsection{更新控制器}
 
 % -----------------------------------Appendix----------------------------------------
 % -----------------------------------REFERENCE----------------------------------------
