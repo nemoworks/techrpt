@@ -25,6 +25,9 @@
 
 \graphicspath{ {images/} }
 \usepackage{ctex}
+\usepackage{caption}
+\usepackage{subfigure}
+\usepackage{booktabs}
 \usepackage{amsthm}
 
 \theoremstyle{definition}
@@ -519,9 +522,31 @@ Reconcile首先根据request中包裹的资源名称和命名空间找到Resourc
 
 \subsection{基本设计概念和结构}
 
-\subsection{代码管理器}
+\subsection{项目管理器}
 \subsubsection{模块描述}
+项目团队中通常包括开发与运营团队，开发团队主要负责开发、测试、推送关键的业务逻辑代码，而运营团队则负责代码的部署、系统的维护等相关的运维工作。两个团队的工作需要密切的联系，但工作内容又泾渭分明。因此，本项目通过引入代码管理器作为开发团队和运营团队的中间处理器，接管双向请求的同时进行进一步的封装和屏蔽，较大程度的减少了侵入性，为两个团队之间的沟通架设好桥梁，使得两个团队可以快速的进行信息的交互，减少了两个团队之间沟通的时间成本，为整个应用系统之后的快速部署与更新迭代提供了保障。
 \subsubsection{功能}
+在代码管理器中，首先需要引入如下的概念：
+\theoremstyle{definition}
+\begin{definition}[\textbf{manifest}]
+\label{definition:manifest}
+manifest包含project下所有service的git仓库和当前运行版本号。
+\end{definition}
+
+\theoremstyle{definition}
+\begin{definition}[\textbf{execResult}]
+\label{definition:execResult}
+execResult表示后台执行反馈，如succeeded/exception log等。
+\end{definition}
+代码管理器作为开发团队和运营团队的中间处理器，主要具备以下的功能：
+\begin{itemize}
+	\item{创建项目
+	\begin{itemize}
+	\item 输入：manifest
+	\item 输出：execResult
+	\item 描述：根据输入manifest, 创建gitlab group, 将manifest写入group description，并将manifest中指定的服务仓库添加到gitlab group shared projects, 目前每个仓库需为现有gitlab仓库
+	\end{itemize}}
+\end{itemize}
 
 \subsection{构建管理器}
 
