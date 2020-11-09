@@ -25,8 +25,10 @@
 
 \graphicspath{ {images/} }
 \usepackage{ctex}
-\usepackage{caption}
-\usepackage{subfigure}
+\usepackage{amsthm}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
 %-----------------------------------------BEGIN DOC----------------------------------------
 
 \begin{document}
@@ -73,7 +75,6 @@
 \begin{center}
 \tableofcontents\label{c}
 \end{center}
-\newpage
 
 %------------------------------------------TEXT--------------------------------------------
 
@@ -83,8 +84,138 @@
 
 % -----------------------------------BLOCKS DESIGN----------------------------------------
 
-%add more subsections for other block in you CPU design.
+\newpage
+\section{技术背景}\label{Background}
 
+\newpage
+\section{微服务动态演化一致性保障协议}\label{MsDymEvo}
+
+\subsection{基本原理}
+本小节将阐述微服务动态演化一致性保障协议的基本原理，说明如何保证正确且高效地完成系统的动态演化。首先引入一个简单但又不失一般性的例子，在系统中存在着这样四个微服务：Portal、Proc、Auth和DB。用户首先会向Portal微服务发起请求，收到请求后的Portal微服务先是调用Auth微服务，得到当前请求的一个验证令牌。然后Portal使用得到的令牌接着对Proc微服务发起请求，收到请求的Proc微服务利用随请求而来的令牌向Auth微服务进行验证，若收到的回复是验证通过，则进一步调用DB微服务以读取数据库中的具体信息并返回；否则，返回请求失败消息，然后将最终结果反馈给发起请求的用户。
+\begin{figure}[ht]
+ \centering
+ \includegraphics[height=5cm]{images/Example.png}
+ \caption{示例系统}
+ \label{fig:Example}
+\end{figure}
+
+
+考虑到这样一种情况：在系统运行时，由于采用了更为安全和快速的加解密算法，由于整个系统所有的加解密过程都在Auth微服务中进行，因此我们可以仅对Auth微服务进行版本的更新及替换，同时对其它的微服务保持透明。在前述的系统运行流程中，若我们在Portal微服务调用完Auth微服务得到对应的验证令牌后且Proc微服务还未使用该令牌向Auth微服务发起验证之前的这个时间段内，Auth微服务不服务于任何的事务，处于空闲状态，我们对Auth微服务进行版本的更新及替换。随着系统的继续运行，当Proc微服务利用使用旧版本算法所加密生成的验证令牌来向Auth微服务发起调用，但此时的Auth微服务已完成更新，新旧算法的不兼容性导致验证失败，最终返回失败信息。显然Auth微服务不正确的动态演化，导致了系统在无故障的情况下不能正确地处理用户请求。
+
+动态演化要求系统能够在不停止服务的情况下进行更新，用户发出的请求在更新前后都能被正确地处理且返回结果。因此，微服务动态演化一致性保障协议的基本原理是考虑在系统运行的过程中，当一次请求需要多次涉及同一个微服务，且不同版本的微服务因兼容性等原因将返回不同的结果时，需要依据事务的运行流程来决定调用的服务版本，从而保证用户请求不受服务动态演化的影响。
+
+\subsection{一致性保障协议}
+在介绍一致性保障协议之前，首先介绍协议中将要用到的几个基本概念的定义：
+
+\theoremstyle{definition}
+\begin{definition}[\textbf{事务与分布式事务}]
+\label{definition:transaction}
+\textbf{一个事务表示在某一微服务上执行且在有限时间内结束的一系列操作，操作包括本地数据的计算和微服务间消息的传递等。在某一微服务上运行的事务可以向其它微服务发起请求，从而在其它的微服务中生成一个新的事务。前者和后者之间的事务关系我们称为父子事务，外界调用系统所产生的第一个事务为根事务。根事务及其随后的调用所产生的所有子事务，我们称为一个分布式事务，并使用其根事务的符号进行标识。}
+\end{definition}
+
+\begin{figure}[ht]
+ \centering
+ \includegraphics[height=8cm]{images/ExampleProcess.png}
+ \caption{示例系统运行时序图}
+ \label{fig:ExampleProcess}
+\end{figure}
+
+
+上图即表示了我们前面所描述的系统中四个微服务之间的运行流程。外部请求首先在Portal微服务上生成T0根事务，然后通过微服务间的调用T1、T2、T3、T4事务依次生成。这样一次完整的调用过程我们便称为分布式事务，用根事务符号T0来进行表示，而T1～T4事务都可称为是T0的子事务。
+
+\begin{definition}[\textbf{版本一致性}]
+\label{definition:version_consistency}
+\textbf{一个分布式事务是版本一致的，当且仅当不存在它的两个子事务，它们在系统运行时先后在同一个微服务的不同版本上运行。一次动态演化所导致的系统演化是版本一致的，当且仅当所有的分布式事务是版本一致的。}
+\end{definition}
+
+
+
+在我们前面所描述的系统运行的例子中，考虑对Auth微服务进行更新，如果更新发生在根事务T0生成之后，但在生成T1之前(即时刻A)，那么后续在Auth微服务上生成的T1、T3子事务都使用的是Auth微服务的新版本，分布式事务T0满足版本一致性；如果更新发生在T3子事务完成之后(即时刻D)，那么在Auth微服务执行过的T1、T3子事务都使用的是Auth微服务的旧版本，分布式事务T0满足版本一致性；而在前面系统出现错误的例子中，更新发生在子事务T1完成之后， 但T2子事务还未生成之前(即时刻C)，那么将导致T1子事务和T3子事务在Auth微服务的不同版本上运行，此时分布式事务T0便不满足版本一致性。
+
+版本一致性虽然描述了微服务动态演化的准则，但我们并不能直接利用这个规则来对微服务动态演化的时机进行判断，因此我们需要引入动态依赖边，使得我们可以分布式地在各自的微服务上进行本地的操作，便可以判断当前微服务是否满足动态演化的条件(即版本一致性)。
+
+\begin{definition}[\textbf{动态依赖边}]
+\label{definition:dynamic_dependences}
+\textbf{$C \xrightarrow[T]{future(past)}  C'$表示在分布式事务T的运行过程中，有一条从微服务C到微服务$C'$的future(past)边。
+其中，future边表示在T之后的运行过程中，微服务C有可能还会在微服务$C'$上生成新的子事务；past边表示在T之前的运行过程中，微服务C已经在微服务$C'$上成功地生成过子事务并返回。}
+\end{definition}
+
+
+
+有了动态依赖边的定义，我们使用如下的规范性准则，使得依赖边可以在每一个分布式事务的运行过程中动态且正确地进行增加和删除操作：
+
+\begin{itemize}
+\item{在微服务C上运行的每一个事务T，开始时添加一对动态依赖边( $C \xrightarrow[root(T)]{future}C$ 和 $C \xrightarrow[root(T)]{past}C$ )，标识为T的根事务，事务结束时删除；}
+
+
+\item{每一条动态依赖边，都需要微服务C和微服务$C'$之间存在真正的静态边，即存在对应调用关系；}
+
+
+\item{$C \xrightarrow[T]{future}C'$ 边必须要在T的第一个子事务生成之前添加，并且应等到T不会通过微服务C在微服务$C'$上生成子事务时，才能够删除；}
+
+
+\item{$C \xrightarrow[T]{past}C'$ 边在T的运行过程中，当微服务C在微服务$C'$上生成的子事务即将结束时生成，应等到T结束时才能够删除。}
+\end{itemize}
+
+有了上述动态依赖边的支持，在系统运行的任何时刻，每个微服务都可以知晓指向自己的动态依赖边，以及负责从自己指向其它微服务动态依赖边的增删，所以我们可以将动态演化的版本一致性条件转化为本地可判断的闲置(FREENESS)条件：
+
+\begin{definition}[\textbf{闲置(FREENESS)}]
+\label{definition:freeness}
+\textbf{微服务C针对某一个分布式事务T是版本一致的，当且仅当不存在由T标识的一对future/past边指向微服务C。微服务C在某一时刻下的状态是版本一致的，当且仅当微服务C对所有当前运行的分布式事务是版本一致的。}
+\end{definition}
+
+
+\subsection{微服务动态演化过程}
+利用动态依赖边的定义以及增删的规范性准则，带有动态依赖边的分布式事务T在运行时流程具体表现为如下三个阶段：
+
+\begin{enumerate}
+
+\item [1.] 准备阶段：分布式事务T在第一个微服务C上完成初始化但还未调用任何其它微服务，即生成子事务之前，C通知所有可能依赖的微服务创建future边并等待回复。被通知的微服务同理，通知其依赖的微服务执行创建操作。当收到所有future边创建成功的回复后，事务T开始运行，如图\ref{fig:Process_a}；
+\begin{figure}[ht]
+ \centering
+ \includegraphics[height=5cm]{images/Process_a.png}
+ \caption{准备阶段：process\_a}
+ \label{fig:Process_a}
+\end{figure}
+
+
+\item [2.] 运行阶段：当知道微服务C不会再通过静态边 $C \xrightarrow{static}C'$ 在微服务C’上生成T的子事务，而且不存在指向C的标识为T的future边，那么future边 $C \xrightarrow[T]{future}C'$ 可以被删除；当微服务$C'$上标识为T的子事务将要结束时，通知微服务C创建past边 $C \xrightarrow[T]{past}C'$ ，且应保证创建成功才能结束子事务，如图\ref{fig:process_c and process_d}；
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\centerline{\includegraphics[width=6cm]{Process_c.png}}
+\label{fig:process_c}
+\end{minipage}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\centerline{\includegraphics[width=6cm]{Process_d.png}}
+\label{fig:process_d}
+\end{minipage}
+\caption{运行阶段：procss\_c 和 process\_d}
+\label{fig:process_c and process_d}
+\end{figure}
+
+
+\item [3.] 结束阶段：和准备阶段时的创建操作类似，从第一个微服务C递归向所有的依赖微服务发送删除消息，删除标识为当前分布式事务T的所有动态依赖边。
+\end{enumerate}
+
+前面的运行流程中，假设我们需要对Auth微服务进行一致性演化且当前只有分布式事务T0处于运行状态，利用闲置(FREENESS)的定义，在时刻A和时刻D，Auth满足更新条件；而在时刻C，存在执行Auth微服务且标识为T0的一对future/past边，因此不满足更新条件。
+
+微服务C只有满足了闲置(FREENESS)条件才能够进行动态演化，但由于系统处于持续运行且不断接收请求的状态，同一时刻存在不同的分布式事务在系统中运行，因此若仅仅通过等待然后判断的策略(WF)，微服务有可能永远不能满足闲置(FREENESS)条件，从而无法及时地进行动态演化。除了WF策略，我们还可以使用下面的两种策略，使得微服务能够及时地完成动态演化操作：
+
+\begin{itemize}
+
+\item {CV：允许不同版本的微服务实例同时存在并提供服务
+
+当微服务C需要进行动态演化时，启动新版本的实例并同时提供服务。当需要在微服务C上生成子事务T时，若已经有一条标识为root(T)的past边指向微服务C，那么新生成的子事务T将在旧版本的微服务实例上运行，否则在新版本的微服务实例上运行。由于事务会在有限时间内完成，因此旧版本的微服务实例上运行的事务逐渐减少为零，最终将旧版本实例从系统中移除。}
+
+\item{BF：暂时阻塞新事务的生成
+
+当微服务C需要进行动态演化时，若需要在其上生成新的子事务T，首先判断是否存在标识为root(T)的一条past边指向自己，若存在则子事务T可以在微服务C上生成并继续执行；不然，阻塞子事务T。旧版本的微服务实例上运行的事务会在有限时间内完成，最终微服务C将满足闲置(FREENESS)条件，此时进行版本的更新，然后恢复之前阻塞的所有事务。}
+\end{itemize}
+
+\newpage
 \section{基于Istio的协议实现}\label{baseistio}
 传统的应用程序将所有功能都打包成一个独立的单元，因此也被称为单体应用。单体应用架构简单，在开发、测试和部署等方面都比较方便。但随着软件应用的发展，单体应用的弊端开始显现：不够灵活，对应用程序做任何细微的修改都需要将整个应用程序重新构建、重新部署，妨碍软件应用的持续交付；技术栈受限，开发团队的所有成员通常都必须使用相同的开发语言。因此，微服务架构应运而生。微服务架构将大型的单体应用拆分成若干个更小的服务，使得每个服务都可以独立地进行部署、升级、扩展和替换，服务间使用轻量级的通信协议进行通信(例如，同步的 REST，异步的 AMQP等)，降低服务间耦合度的同时满足了软件程序对于快速持续集成和持续交付的需求。
 \begin{figure}[ht]
@@ -153,7 +284,7 @@
 	 \label{fig:traffic_all_v1}
 	\end{figure}
 
-	在系统的运行过程中，当存在入站流量调用到auth-service时，Envoy容器执行拦截操作：一方面将流量转发往负责的服务实例，另一方面将此次调用所对应的traceid信息从头信息中提取出来并发送往TraceManager容器，TraceManager容器则将对应的traceid存到对应的TraceidSet中，该集合代表了当前所有调用过auth-service的用户请求；同时，当本次用户请求处理完成并返回Ingress Gateway时，Ingress Gateway实例内部会执行同样的添加操作，这里的TraceidSet则代表了当前已完成并返回的用户请求集合。
+	在系统的运行过程中，当存在入站流量调用到auth-service时，Envoy容器执行拦截操作：一方面将流量转发往负责的服务实例，另一方面将此次调用所对应的traceid信息从头信息中提取出来并发送往TraceManager容器，TraceManager容器则将对应的traceid存到对应的TraceidSet中，该集合代表了当前所有调用过auth-service的分布式事务id；同时，当本次用户请求处理完成并返回Ingress Gateway时，Ingress Gateway实例内部会执行同样的添加操作，这里的TraceidSet则代表了当前已完成并返回的分布式事务id集合。
 	\begin{figure}[ht]
 	 \centering
 	 \includegraphics[height=10cm]{images/record_trace.png}
@@ -161,28 +292,39 @@
 	 \label{fig:record_trace}
 	\end{figure}
 
-	\item [2.] 新版本上线
-	当我们需要对auth-service进行更新时，首先需要将新版本的服务进行上线部署。与此同时，相关的路由规则和版本信息修改为：
+	\item [2.] 新版本上线：
+	当我们需要对auth-service进行更新时，首先需要将新版本的服务进行上线部署。与此同时，相关的路由规则和版本信息修改为：图\ref{fig:vs_default_v1}中共包含三个路由规则，依次进行匹配，第一条规则表示若请求流量中的头信息包含v1版本信息，则将该流量转发到v1版本中；第二条规则表示若请求流量中的头信息包含v2版本信息，则将该流量转发到v2版本中；若第一第二条规则均不满足，则应用第三条规则，将流量转发到v1版本中，同时添加对应的自定义头信息。图\ref{fig:dr_v1v2}则添加了新版本服务对应的标签定义。
 	\begin{figure}[htbp]
 	\centering
 	\begin{minipage}[t]{0.48\textwidth}
 	\centering
-	\centerline{\includegraphics[width=6cm]{vs_all_v1.png}}
-	\caption{v1路由规则}
-	\label{fig:vs_all_v1}
+	\centerline{\includegraphics[width=7cm]{vs_default_v1.png}}
+	\caption{默认发往v1路由规则}
+	\label{fig:vs_default_v1}
 	\end{minipage}
 	\begin{minipage}[t]{0.48\textwidth}
 	\centering
-	\centerline{\includegraphics[width=6cm]{dr_v1.png}}
-	\caption{v1版本规则}
-	\label{fig:dr_v1}
+	\centerline{\includegraphics[width=6cm]{dr_v1v2.png}}
+	\caption{v1、v2版本规则}
+	\label{fig:dr_v1v2}
 	\end{minipage}
 	\end{figure}
-	\item [3.] 配置更新
-	\item [4.] 旧版本撤销请求
+
+	此时，若某个分布式事务还未调用过auth-service，则请求的头信息中不包含相关的版本信息，依据第三条规则将流量转发往v1版本；若此分布式事务已调用过auth-service服务，则由于第三条规则的存在，其请求的头信息中必然包含了v1的版本信息，依据第一条规则同样将流量转发往v1版本。因此，虽然新版本的auth-service已完成上线部署，但还没有流量经过。对应的系统运行状态为图\ref{fig:traffic_default_v1}
+	\begin{figure}[ht]
+	 \centering
+	 \includegraphics[height=5cm]{images/traffic_default_v1.png}
+	 \caption{流量默认发往v1}
+	 \label{fig:traffic_default_v1}
+	\end{figure}
+
+	\item [3.] 配置更新：
+	
+	\item [4.] 旧版本撤销请求：
 	\item [5.] 
 \end{enumerate}
 
+\newpage
 \section{动态更新系统实现}\label{}
 
 \subsection{基本设计概念和结构}
