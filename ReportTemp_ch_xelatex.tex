@@ -200,8 +200,8 @@ CRD是CustomResourceDefinition的简写，资源是kubernetes中的抽象概念�
 
 所有物理资源都要在系统中注册，且在系统中表达为Resource CRD，需要使用一些参数描述资源。这些参数告诉了Kubernetes平台如何去访问资源并维护资源的状态。首先，资源需要一个唯一的标识。其次，因为需要使用探针去采集资源的各项信息，需要包含探针程序的镜像地址和启动命令以及启动参数。
 
-ResourceSpec结构如下：
-
+\begin{table}[!htbp]
+\centering
 \begin{tabular}{ccc}
   \toprule
   字段& 类型& 意义\\
@@ -210,31 +210,58 @@ ResourceSpec结构如下：
   Icon& string& 标识位置，用于在前端显示\\
   Description& map[string]string& 资源描述\\
   AccessMode& ResourceAccessMode& 访问方式，独占或者共享\\
-  Operation& []ResourceOperationSpec& 资源操作列表\\
-  ProbeImage& string& 探针的镜像\\
-  ProbeArgs& []string& 启动探针的命令行参数\\
-  ProbeEnabled& bool& 是否启动探针\\
   AliasName& string& 资源别名\\
+  ProbeSpec& ProbeSpec& 探针属性\\
+  ConnectorSpec& ConnectorSpec& 连接器属性\\
   \bottomrule
 \end{tabular}
+\caption{ResourceSpec}
+\end{table}
 
-
-ResourceOperationSpec结构如下：
-
+\begin{table}[!htbp]
+\centering
 \begin{tabular}{ccc}
   \toprule
   字段& 类型& 意义\\
   \midrule
-  Name& string& 操作名称\\
-  Price& float64& 操作价格，比如操作咖啡机就是一杯咖啡的价格\\
-  Description& string& 操作描述\\
-  HTTPAction& HTTPActionSpec& 操作接口\\
+  Enabled& bool& 决定是否启用探针\\
+  Image& string& 探针的镜像\\
+  Args& []string& 探针的启动参数\\
+  Patchers& []FieldPatcher& \\
   \bottomrule
 \end{tabular}
+\caption{ProbeSpec}
+\end{table}
 
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Source& HTTPActionSpec&  \\
+  Setters& []FieldSetter&  \\
+  \bottomrule
+\end{tabular}
+\caption{FieldPatcher}
+\end{table}
 
-HTTPActionSpec结构如下：
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Parser& string& 解析器\\
+  Type& string& 类型\\
+  Target& HTTPActionSpec& \\
+  \bottomrule
+\end{tabular}
+\caption{FieldSetter}
+\end{table}
 
+\begin{table}[!htbp]
+\centering
 \begin{tabular}{ccc}
   \toprule
   字段& 类型& 意义\\
@@ -245,9 +272,25 @@ HTTPActionSpec结构如下：
   Headers& map[string]string& 请求头\\
   \bottomrule
 \end{tabular}
+\caption{HTTPActionSpec}
+\end{table}
 
-ResourceStatus结构如下：
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Image& string& 连接器镜像\\
+  Args& []string& 连接器的启动参数\\
+  ListenPort& int32& 连接器监听的端口\\
+  \bottomrule
+\end{tabular}
+\caption{ConnectorSpec}
+\end{table}
 
+\begin{table}[!htbp]
+\centering
 \begin{tabular}{ccc}
   \toprule
   字段& 类型& 意义\\
@@ -259,11 +302,25 @@ ResourceStatus结构如下：
   StartTime& *metav1.Time& 各个组件都启动的时间\\
   \bottomrule
 \end{tabular}
+\caption{ResourceStatus}
+\end{table}
 
-\subsubsection{人机物资源的运行时编排（WHG）}
+\subsubsection{人机物资源的运行时编排}
+
+Linux容器技术能够对应用及其整个运行时环境（包括全部所需文件）一起进行打包或隔离。从而让开发者可以在不同环境（如开发、测试和生产等环境）之间轻松迁移应用，同时还可保留应用的全部功能。
+
+容器是虚拟化的主要形式之一，相比于虚拟机需要虚拟化基础硬件，每个虚拟机都运行一个操作系统，容器共享主机OS，因此它们不需要启动 OS 或加载库。这使得容器更加高效和轻量。容器化应用程序可以在几秒钟内启动，与 VM 方案相比，应用程序的更多实例可以适应计算机。共享 OS 方法具有额外的好处，即减少维护（如修补和更新）开销。
+
+Kubernetes提供了生产级容器编排服务，它是一种可自动实施 Linux 容器操作的开源平台。它可以帮助用户省去应用容器化过程的许多手动部署和扩展操作。Kubernetes 可为用户提供一个便捷有效的平台，让用户可以在物理机或虚拟机集群上调用和运行容器。Kubernetes 架构将集群分为不同的组件，这些组件要协同工作来维护集群的预期状态。
+
+Kubernetes Operator 是一种封装、部署和管理 Kubernetes 应用的方法。Operator 是使用自定义资源（CR）管理应用及其组件的自定义 Kubernetes 控制器。高级配置和设置由用户在 CR 中提供。Kubernetes Operator 基于嵌入在 Operator 逻辑中的最佳实践将高级指令转换为低级操作。自定义资源是 Kubernetes 中的 API 扩展机制。自定义资源定义（CRD）会明确 CR 并列出 Operator 用户可用的所有配置。 Kubernetes Operator 监视 CR 类型并采取特定于应用的操作，确保当前状态与该资源的理想状态相符。
+
+我们使用Operator的形式在Kubernetes中部署人机物融合平台。
 Resource CRD由Resource Controller管理，控制器监控资源的状态，当监测资源的增删改事件时就会生成一个包含相关资源名称的request塞入工作队列，Reconcile方法每隔很短的一段时间被调用一次，从工作队列中取出一个request作为参数进行处理。
 
-Reconcile首先根据request中包裹的资源名称和命名空间找到Resource的实例，如果是删除事件什么都不需要做，增改事件则会根据ProbeEnabled字段判断是否需要新建、更新、删除探针Deployment资源。
+Reconcile首先根据request中包裹的资源名称和命名空间找到Resource的实例，如果是删除事件什么都不需要做，增改事件则会判断是否需要新建、更新、删除包含探针和连接器的Deployment资源以及Service资源。
+
+控制器的实际工作就是把Resource CRD翻译成Kubernetes中的原生资源，Deployment会负责生产实际的Pod来运行Probe和Connector容器，Service用于暴露Connector，让其他的应用可以访问它。
 
 \subsection{消息驱动的人机物资源协作模型}
 \subsubsection{资源状态的同步}
