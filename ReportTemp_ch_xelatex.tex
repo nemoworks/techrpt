@@ -414,10 +414,72 @@
 CRD是CustomResourceDefinition的简写，资源是kubernetes中的抽象概念，CRD是自定义的资源。
 
 所有物理资源都要在系统中注册，且在系统中表达为Resource CRD，需要使用一些参数描述资源。这些参数告诉了Kubernetes平台如何去访问资源并维护资源的状态。首先，资源需要一个唯一的标识。其次，因为需要使用探针去采集资源的各项信息，需要包含探针程序的镜像地址和启动命令以及启动参数。
+
+ResourceSpec结构如下：
+
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  ResourceKind& enum& 资源类型，包括人、机器、服务\\
+  Icon& string& 标识位置，用于在前端显示\\
+  Description& map[string]string& 资源描述\\
+  AccessMode& ResourceAccessMode& 访问方式，独占或者共享\\
+  Operation& []ResourceOperationSpec& 资源操作列表\\
+  ProbeImage& string& 探针的镜像\\
+  ProbeArgs& []string& 启动探针的命令行参数\\
+  ProbeEnabled& bool& 是否启动探针\\
+  AliasName& string& 资源别名\\
+  \bottomrule
+\end{tabular}
+
+
+ResourceOperationSpec结构如下：
+
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Name& string& 操作名称\\
+  Price& float64& 操作价格，比如操作咖啡机就是一杯咖啡的价格\\
+  Description& string& 操作描述\\
+  HTTPAction& HTTPActionSpec& 操作接口\\
+  \bottomrule
+\end{tabular}
+
+
+HTTPActionSpec结构如下：
+
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Action& string& 接口名称\\
+  URL& string& 接口url\\
+  Query& map[string]string& 对接口的查询参数\\
+  Headers& map[string]string& 请求头\\
+  \bottomrule
+\end{tabular}
+
+ResourceStatus结构如下：
+
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Phase& enum& 状态（包括Pending、Running、Failed）\\
+  ProbePhase& enum& 探针状态（包括NotReady、Pending、Synchronous和Failed）\\
+  Bound& bool& 是否已经被绑定使用\\
+  CreateTime& *metav1.Time& 创建时间\\
+  StartTime& *metav1.Time& 各个组件都启动的时间\\
+  \bottomrule
+\end{tabular}
+
 \subsubsection{人机物资源的运行时编排（WHG）}
 Resource CRD由Resource Controller管理，控制器监控资源的状态，当监测资源的增删改事件时就会生成一个包含相关资源名称的request塞入工作队列，Reconcile方法每隔很短的一段时间被调用一次，从工作队列中取出一个request作为参数进行处理。
 
 Reconcile首先根据request中包裹的资源名称和命名空间找到Resource的实例，如果是删除事件什么都不需要做，增改事件则会根据ProbeEnabled字段判断是否需要新建、更新、删除探针Deployment资源。
+
 \subsection{消息驱动的人机物资源协作模型}
 \subsubsection{资源状态的同步}
 \subsubsection{资源代理服务（TC）}
