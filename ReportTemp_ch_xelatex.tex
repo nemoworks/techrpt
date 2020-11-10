@@ -1,4 +1,4 @@
-\documentclass[a4paper]{article}
+\documentclass[a4paper, 12pt]{article}
 
 \input{style/ch_xelatex.tex}
 \input{style/scala.tex}
@@ -29,6 +29,7 @@
 \usepackage{subfigure}
 \usepackage{booktabs}
 \usepackage{amsthm}
+\usepackage[nottoc]{tocbibind}
 
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
@@ -39,7 +40,7 @@
 %-----------------------------------------BEGIN DOC----------------------------------------
 
 \begin{document}
-\renewcommand{\contentsname}{目录}
+\renewcommand{\contentsname}{\ \ \ 目录\ \ \ }
 \renewcommand{\appendixname}{附录}
 \renewcommand{\appendixpagename}{附录}
 \renewcommand{\refname}{参考文献} 
@@ -49,15 +50,14 @@
 
 \renewcommand{\maketitle}{
     \thispagestyle{title}
-    \heiti
+    \songti %set font for title
     \vspace*{94pt}
     \begin{center}
         \fontsize{50pt}{0} 科技报告\\
         \vspace*{300pt}
-        \large \textcolor{red}{报告名称: \quad}\ \ \underline{\makebox[300pt]{陈家镇国际生态社区能源管理中心建设关键技术}}\\
-        \large 支持渠道: \quad\ \ \underline{\makebox[300pt]{科技部等中央单位与上海市共同推进重大任务科研专项}}\\
-        \large 报告类型: \quad\ \ \underline{\makebox[300pt]{最终报告}}\\
-        \large 编制单位: \quad\ \ \underline{\makebox[300pt]{上海陈家镇建设发展有限公司}}\\
+        \large \textcolor{red}{项目名称: \quad}\ \ \underline{\makebox[300pt]{待填写}}\\
+        \large 课题名称: \quad\ \ \underline{\makebox[300pt]{待填写}}\\
+        \large 编制单位: \quad\ \ \underline{\makebox[300pt]{待填写}}\\
         \large 编制时间: \quad\ \ \underline{\makebox[300pt]{\today}}
 
     \end{center}
@@ -65,6 +65,8 @@
 
 \maketitle
 
+
+\songti %set font for text
 \newpage
 
 %-----------------------------------------ABSTRACT-------------------------------------
@@ -564,8 +566,134 @@ execResult表示后台执行反馈，如succeeded/exception log等。
 从传统计算资源管理平台的角度来看，融合平台按照用户提供的人机物资源描述，维护资源代理服务和消息中间件等组件的运行状态；从人机物资源管理平台的角度来看，融合平台向下接入现实世界的各类人机物资源，向上层的资源代理服务与消息中间件，提供相对统一的资源访问接口。
 
 \subsection{人机物资源的描述与编排}
+实际的物理资源都要抽象成一种数据结构存储在系统中，系统同时要更新和维护它们。本软件平台通过\textbf{Kubernetes CRD}在系统中表示抽象资源，存储在\textbf{etcd}中，\textbf{Kubernetes Controller}负责维护它们，同步状态。
 \subsubsection{人机物资源描述规范}
+\textbf{CRD}是\textbf{CustomResourceDefinition}的简写，资源是\textbf{kubernetes}中的抽象概念，\textbf{CRD}是自定义的资源。
+
+所有物理资源都要在系统中注册，且在系统中表达为\textbf{Resource CRD}，需要使用一些参数描述资源。这些参数告诉了\textbf{Kubernetes}平台如何去访问资源并维护资源的状态。首先，资源需要一个唯一的标识。其次，因为需要使用探针去采集资源的各项信息，需要包含探针程序的镜像地址和启动命令以及启动参数。
+
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  ResourceKind& enum& 资源类型，包括人、机器、服务\\
+  Icon& string& 标识位置，用于在前端显示\\
+  Description& map[string]string& 资源描述\\
+  AccessMode& ResourceAccessMode& 访问方式，独占或者共享\\
+  AliasName& string& 资源别名\\
+  ProbeSpec& ProbeSpec& 探针属性\\
+  ConnectorSpec& ConnectorSpec& 连接器属性\\
+  \bottomrule
+\end{tabular}
+\caption{ResourceSpec}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Enabled& bool& 决定是否启用探针\\
+  Image& string& 探针的镜像\\
+  Args& []string& 探针的启动参数\\
+  Patchers& []FieldPatcher& 字段修改器\\
+  \bottomrule
+\end{tabular}
+\caption{ProbeSpec}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Source& HTTPActionSpec& 操作接口\\
+  Setters& []FieldSetter& 字段设置器\\
+  \bottomrule
+\end{tabular}
+\caption{FieldPatcher}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Parser& string& 解析器\\
+  Type& string& 类型\\
+  Target& HTTPActionSpec& 操作接口\\
+  \bottomrule
+\end{tabular}
+\caption{FieldSetter}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Action& string& 接口名称\\
+  URL& string& 接口url\\
+  Query& map[string]string& 对接口的查询参数\\
+  Headers& map[string]string& 请求头\\
+  \bottomrule
+\end{tabular}
+\caption{HTTPActionSpec}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Image& string& 连接器镜像\\
+  Args& []string& 连接器的启动参数\\
+  ListenPort& int32& 连接器监听的端口\\
+  \bottomrule
+\end{tabular}
+\caption{ConnectorSpec}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{ccc}
+  \toprule
+  字段& 类型& 意义\\
+  \midrule
+  Phase& enum& 状态（包括Pending、Running、Failed）\\
+  ProbePhase& enum& 探针状态（包括NotReady、Pending、Synchronous和Failed）\\
+  Bound& bool& 是否已经被绑定使用\\
+  CreateTime& *metav1.Time& 创建时间\\
+  StartTime& *metav1.Time& 各个组件都启动的时间\\
+  \bottomrule
+\end{tabular}
+\caption{ResourceStatus}
+\end{table}
+
 \subsubsection{人机物资源的运行时编排}
+
+\textbf{Linux}容器技术能够对应用及其整个运行时环境（包括全部所需文件）一起进行打包或隔离。从而让开发者可以在不同环境（如开发、测试和生产等环境）之间轻松迁移应用，同时还可保留应用的全部功能。
+
+容器是虚拟化的主要形式之一，相比于虚拟机需要虚拟化基础硬件，每个虚拟机都运行一个操作系统，容器共享主机\textbf{OS}，因此它们不需要启动\textbf{OS}或加载库。这使得容器更加高效和轻量。容器化应用程序可以在几秒钟内启动，与\textbf{VM}方案相比，应用程序的更多实例可以适应计算机。共享\textbf{OS}方法具有额外的好处，即减少维护（如修补和更新）开销。
+
+\textbf{Kubernetes}提供了生产级容器编排服务，它是一种可自动实施 \textbf{Linux} 容器操作的开源平台。它可以帮助用户省去应用容器化过程的许多手动部署和扩展操作。\textbf{Kubernetes} 可为用户提供一个便捷有效的平台，让用户可以在物理机或虚拟机集群上调用和运行容器。\textbf{Kubernetes} 架构将集群分为不同的组件，这些组件要协同工作来维护集群的预期状态。
+
+\textbf{Kubernetes Operator} 是一种封装、部署和管理 \textbf{Kubernetes} 应用的方法。\textbf{Operator} 是使用自定义资源（\textbf{CR}）管理应用及其组件的自定义 \textbf{Kubernetes} 控制器。高级配置和设置由用户在 \textbf{CR} 中提供。\textbf{Kubernetes Operator} 基于嵌入在 \textbf{Operator} 逻辑中的最佳实践将高级指令转换为低级操作。自定义资源是 \textbf{Kubernetes} 中的 \textbf{API} 扩展机制。自定义资源定义（\textbf{CRD}）会明确 \textbf{CR} 并列出 \textbf{Operator} 用户可用的所有配置。 \textbf{Kubernetes Operator} 监视 \textbf{CR} 类型并采取特定于应用的操作，确保当前状态与该资源的理想状态相符。
+
+我们使用\textbf{Operator}的形式在\textbf{Kubernetes}中部署人机物融合平台。
+\textbf{Resource CRD}由\textbf{Resource Controller}管理，控制器监控资源的状态，当监测资源的增删改事件时就会生成一个包含相关资源名称的\textbf{request}塞入工作队列，\textbf{Reconcile}方法每隔很短的一段时间被调用一次，从工作队列中取出一个\textbf{request}作为参数进行处理。
+
+\textbf{Reconcile}首先根据\textbf{request}中包裹的资源名称和命名空间找到\textbf{Resource}的实例，如果是删除事件什么都不需要做，增改事件则会判断是否需要新建、更新、删除包含探针和连接器的\textbf{Deployment}资源以及\textbf{Service}资源。
+
+控制器的实际工作就是把\textbf{Resource CRD}翻译成\textbf{Kubernetes}中的原生资源，\textbf{Deployment}会负责生产实际的\textbf{Pod}来运行\textbf{Probe}和\textbf{Connector}容器，\textbf{Service}用于暴露\textbf{Connector}，让其他的应用可以访问它。
 
 \subsection{消息驱动的人机物资源协作模型}
 
@@ -858,10 +986,13 @@ execResult表示后台执行反馈，如succeeded/exception log等。
 \newpage
 
 % -----------------------------------REFERENCE----------------------------------------
-\begin{thebibliography}{9}
-\bibitem{Erdos01} P. Erd\H os, \emph{A selection of problems and
-results in combinatorics}, Recent trends in combinatorics (Matrahaza,
-1995), Cambridge Univ. Press, Cambridge, 2001, pp. 1--6.
-\end{thebibliography}
+\section{引用示例}
+This document is an example of BibTeX using in bibliography management. Three items are cited: \textit{The \LaTeX\ Companion} book \cite{latexcompanion}, the Einstein journal paper \cite{einstein}, and the Donald Knuth's website \cite{knuthwebsite}. The \LaTeX\ related items are \cite{latexcompanion,knuthwebsite}. 
+
+% -----------------------------------Appendix----------------------------------------
+% -----------------------------------REFERENCE----------------------------------------
+\newpage
+\bibliographystyle{unsrt}
+\bibliography{ReportTemp_ch_xelatex}
 \end{document}
 
