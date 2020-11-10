@@ -29,6 +29,7 @@
 \usepackage{subfigure}
 \usepackage{booktabs}
 \usepackage{amsthm}
+\usepackage[nottoc]{tocbibind}
 
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[section]
@@ -36,7 +37,7 @@
 %-----------------------------------------BEGIN DOC----------------------------------------
 
 \begin{document}
-\renewcommand{\contentsname}{目录}
+\renewcommand{\contentsname}{\ \ \ 目录\ \ \ }
 \renewcommand{\appendixname}{附录}
 \renewcommand{\appendixpagename}{附录}
 \renewcommand{\refname}{参考文献} 
@@ -885,10 +886,13 @@
 \newpage
 
 % -----------------------------------REFERENCE----------------------------------------
-\begin{thebibliography}{9}
-\bibitem{Erdos01} P. Erd\H os, \emph{A selection of problems and
-results in combinatorics}, Recent trends in combinatorics (Matrahaza,
-1995), Cambridge Univ. Press, Cambridge, 2001, pp. 1--6.
-\end{thebibliography}
+\section{引用示例}
+This document is an example of BibTeX using in bibliography management. Three items are cited: \textit{The \LaTeX\ Companion} book \cite{latexcompanion}, the Einstein journal paper \cite{einstein}, and the Donald Knuth's website \cite{knuthwebsite}. The \LaTeX\ related items are \cite{latexcompanion,knuthwebsite}. 
+
+% -----------------------------------Appendix----------------------------------------
+% -----------------------------------REFERENCE----------------------------------------
+\newpage
+\bibliographystyle{unsrt}
+\bibliography{ReportTemp_ch_xelatex}
 \end{document}
 
